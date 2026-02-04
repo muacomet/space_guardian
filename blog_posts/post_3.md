@@ -10,6 +10,8 @@
 
 AI는 Phaser의 `Scene` 클래스를 상속받아 `ShopScene`을 뚝딱 만들어냈습니다. UI 구성부터 버튼 이벤트 처리까지 한 번에 구현되었죠.
 
+![Shop Interface](/Users/muaco/.gemini/antigravity/brain/104825de-5f95-4705-8e36-dcd59b673877/screenshot_shop_1770195202999.png)
+
 ## 2. 데이터 영구 저장 (localStorage)
 웹 게임의 단점은 '새로고침하면 데이터가 날아간다'는 점입니다. 이를 해결하기 위해 브라우저의 `localStorage`를 활용했습니다.
 

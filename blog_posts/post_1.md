@@ -24,7 +24,12 @@ AI는 즉시 `task.md`를 생성하여 체계적인 개발 로드맵을 제안�
 
 ## 3. 첫 결과물
 단 10분 만에 플레이 가능한 프로토타입이 완성되었습니다.
-(스크린샷: 초기 실행 화면)
+
+**(Before: 2017년 원작)**
+![Original Game Title](https://postfiles.pstatic.net/MjAxNzEyMDZfODYg/MDAxNTEyNTU5OTE1ODI3.Hz0cU38Gx_lAWXJ6wjy1Lcovo_wv8sdBsMqAeXIUP7Qg.PojAsMMHt4V6nIjl1haQc5PvrcHg9QmCSN1wxhT0FVEg.JPEG.gpejddk/image_6982089981512559173253.jpg)
+
+**(After: 2026년 리메이크)**
+![Remake Menu](/Users/muaco/.gemini/antigravity/brain/104825de-5f95-4705-8e36-dcd59b673877/screenshot_menu_1770194548294.png)
 
 다음 편에서는 밋밋한 우주 배경을 **화려한 Starfield**로 바꾸고, 타격감을 더해주는 **사운드 효과**를 적용한 과정을 다룹니다.
 

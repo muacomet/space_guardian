@@ -37,6 +37,12 @@ createLayer(count, speed, color) {
 
 결과적으로 화면은 훨씬 다채로워졌고, 플레이어는 상황에 맞춰 전략적으로 움직여야 하는 재미가 생겼습니다.
 
+**(Before: 단조로운 배경)**
+![Original Gameplay](https://postfiles.pstatic.net/MjAxNzEyMTNfMTYy/MDAxNTEzMTYzOTk5MzIw.CmR8HHMxWFg0L9TFS5TkahFt1ligQV2UzQ3B3KGixisg.flIBrlCP3ho0a-0MODYWCjoLzocbBHFuipjVVNNlwS8g.JPEG.gpejddk/1.jpg)
+
+**(After: Parallax Starfield 적용)**
+![Remake Gameplay](/Users/muaco/.gemini/antigravity/brain/104825de-5f95-4705-8e36-dcd59b673877/screenshot_gameplay_countdown_1770195543281.png)
+
 ---
 **[Space Guardian 리메이크 시리즈]**
 1. AI와 짝코딩으로 죽은 게임 심폐소생술하기

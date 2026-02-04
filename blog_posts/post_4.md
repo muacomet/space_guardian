@@ -13,6 +13,8 @@
 ### 🤖 Vibe Coding Prompt (Button)
 > "모바일에서는 스페이스바를 누를 수 없으니, **화면 하단 중앙에 'SUMMON' 버튼을 만들어줘.** 버튼을 터치하면 가디언이 소환되어야 해. 쿨타임이거나 키가 부족하면 붉은색으로 표시해줘."
 
+![Summon Guardian](/Users/muaco/.gemini/antigravity/brain/104825de-5f95-4705-8e36-dcd59b673877/screenshot_gameplay_summon_1770195314499.png)
+
 ## 2. 반응형 UI와 뷰포트 설정
 모바일 브라우저 주소창이나 스크롤 때문에 게임 화면이 잘리는 문제가 발생했습니다. 이를 해결하기 위해 HTML `meta` 태그와 CSS를 대대적으로 수정했습니다.
 
