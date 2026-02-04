@@ -3,18 +3,27 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Space Guardian Remake</title>
     <style>
+        html,
         body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
             background-color: #000;
+            overflow: hidden;
+            /* Prevent scrolling */
+            touch-action: none;
+            /* Disable default touch actions */
+        }
+
+        body {
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
         }
 
         canvas {
@@ -125,12 +134,102 @@
                 });
 
                 this.input.on('pointerdown', () => {
-                    this.scene.start('GameScene');
+                    this.scene.start('MenuScene');
                 });
 
                 this.input.keyboard.on('keydown-SPACE', () => {
-                    this.scene.start('GameScene');
+                    this.scene.start('MenuScene');
                 });
+            }
+        }
+
+        class MenuScene extends Phaser.Scene {
+            constructor() { super({ key: 'MenuScene' }); }
+            create() {
+                this.starfield = new Starfield(this);
+
+                this.add.text(180, 150, 'SPACE\nGUARDIAN', {
+                    fontSize: '48px', fill: '#00ffff', fontStyle: 'bold', align: 'center', stroke: '#000000', strokeThickness: 6
+                }).setOrigin(0.5);
+
+                const startBtn = this.createBtn(180, 350, 'GAME START', '#ffffff');
+                startBtn.on('pointerdown', () => this.scene.start('GameScene'));
+
+                const shopBtn = this.createBtn(180, 450, 'SHOP', '#ffff00');
+                shopBtn.on('pointerdown', () => this.scene.start('ShopScene'));
+            }
+
+            createBtn(x, y, text, color) {
+                const btn = this.add.text(x, y, text, { fontSize: '32px', fill: color, fontStyle: 'bold' }).setOrigin(0.5).setInteractive();
+                btn.on('pointerover', () => btn.setScale(1.1));
+                btn.on('pointerout', () => btn.setScale(1.0));
+                return btn;
+            }
+
+            update() {
+                this.starfield.update();
+            }
+        }
+
+        class Starfield {
+            constructor(scene) {
+                this.scene = scene;
+                this.stars = [];
+                this.createLayer(60, 0.5, 0xffffff);
+                this.createLayer(40, 1.0, 0xffddaa);
+                this.createLayer(20, 2.0, 0x99ccff);
+            }
+
+            createLayer(count, speed, color) {
+                for (let i = 0; i < count; i++) {
+                    const x = Phaser.Math.Between(0, 360);
+                    const y = Phaser.Math.Between(0, 640);
+                    const star = this.scene.add.rectangle(x, y, 2, 2, color).setDepth(-10);
+                    star.speed = speed;
+                    this.stars.push(star);
+                }
+            }
+
+            update() {
+                this.stars.forEach(star => {
+                    star.y += star.speed;
+                    if (star.y > 640) {
+                        star.y = 0;
+                        star.x = Phaser.Math.Between(0, 360);
+                    }
+                });
+            }
+        }
+
+        class ShopScene extends Phaser.Scene {
+            constructor() { super({ key: 'ShopScene' }); }
+            create() {
+                this.keys = parseInt(localStorage.getItem('sg_keys') || '0');
+                this.dmgLv = parseInt(localStorage.getItem('sg_damage_level') || '1');
+                this.durLv = parseInt(localStorage.getItem('sg_duration_level') || '1');
+
+                this.add.text(180, 60, 'SHOP', { fontSize: '48px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
+                this.add.text(180, 110, `KEYS: ${this.keys}`, { fontSize: '28px', fill: '#ffff00' }).setOrigin(0.5);
+
+                this.createUpgradeBtn(200, 'DAMAGE', this.dmgLv, (this.dmgLv * 10), 'damage');
+                this.createUpgradeBtn(350, 'DURATION', this.durLv, (this.durLv * 10), 'duration');
+
+                this.add.text(180, 550, 'BACK TO MENU', { fontSize: '24px', fill: '#aaaaaa' })
+                    .setOrigin(0.5).setInteractive().on('pointerdown', () => this.scene.start('MenuScene'));
+            }
+            createUpgradeBtn(y, name, level, cost, type) {
+                this.add.text(180, y, `${name} (Lv.${level})`, { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+                this.add.text(180, y + 40, `UPGRADE (${cost} Keys)`, { fontSize: '20px', fill: '#00ff00', backgroundColor: '#333' })
+                    .setPadding(8).setOrigin(0.5).setInteractive()
+                    .on('pointerdown', () => {
+                        if (this.keys >= cost) {
+                            this.keys -= cost;
+                            if (type === 'damage') { this.dmgLv++; localStorage.setItem('sg_damage_level', this.dmgLv); }
+                            else { this.durLv++; localStorage.setItem('sg_duration_level', this.durLv); }
+                            localStorage.setItem('sg_keys', this.keys);
+                            this.scene.restart();
+                        } else this.cameras.main.shake(100, 0.005);
+                    });
             }
         }
 
@@ -140,14 +239,29 @@
             }
 
             create() {
+                this.starfield = new Starfield(this);
                 this.gameOver = false;
                 this.isPaused = false;
                 this.lastFired = 0;
                 this.score = 0;
-                this.keys = 10;
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('sg_highScore') || '0');
+                this.keys = parseInt(localStorage.getItem('sg_keys') || '0');
+                if (this.keys < 10) this.keys = 10;
+
+                // Upgrades
+                this.damageLevel = parseInt(localStorage.getItem('sg_damage_level') || '1');
+                this.durationLevel = parseInt(localStorage.getItem('sg_duration_level') || '1');
+
                 this.bossAppeared = false;
                 this.boss = null;
+                this.boss = null;
                 this.bossHP = 100;
+
+                // Power-up states
+                this.hasShield = false;
+                this.isRapidFire = false;
+                this.fireRate = 1000; // ms
 
                 this.player = this.physics.add.sprite(180, 580, 'playerTexture');
                 this.player.setDisplaySize(50, 50);
@@ -182,7 +296,13 @@
 
                 this.physics.add.overlap(this.player, this.meteors, this.hitMeteor, null, this);
                 this.physics.add.overlap(this.bullets, this.meteors, this.hitEnemy, null, this);
-                this.physics.add.overlap(this.player, this.items, this.collectKey, null, this);
+                this.physics.add.overlap(this.bullets, this.meteors, this.hitEnemy, null, this);
+                this.physics.add.overlap(this.player, this.items, this.collectItem, null, this);
+
+                // Summon Button for Mobile
+                this.summonBtn = this.add.text(180, 500, 'SUMMON\n(5 Keys)', {
+                    fontSize: '20px', fill: '#00ff00', align: 'center', backgroundColor: 'rgba(0,0,0,0.5)'
+                }).setOrigin(0.5).setPadding(5).setDepth(50);
 
                 this.startCountdown();
             }
@@ -219,27 +339,57 @@
                 this.pauseBtn.setInteractive();
 
                 this.spawnEvent = this.time.addEvent({ delay: 1000, callback: this.spawnMeteor, callbackScope: this, loop: true });
-                this.keyEvent = this.time.addEvent({ delay: 2000, callback: this.spawnKey, callbackScope: this, loop: true });
+                this.keyEvent = this.time.addEvent({ delay: 2000, callback: this.spawnItem, callbackScope: this, loop: true });
             }
 
             update(time, delta) {
+                if (this.starfield && !this.isPaused) {
+                    this.starfield.update();
+                }
+
                 if (this.gameOver || this.isPaused || !this.player) return;
 
                 this.player.setVelocityX(0);
+
+                // Keyboard Input
                 if (this.cursors.left.isDown) this.player.setVelocityX(-300);
                 else if (this.cursors.right.isDown) this.player.setVelocityX(300);
 
-                if (this.spaceKey.isDown && time > this.lastFired + 1000) {
-                    if (this.keys >= 5) {
-                        this.spawnGuardian();
-                        this.lastFired = time;
-                        this.keys -= 5;
-                        this.keysText.setText('KEYS: ' + this.keys);
+                // Touch Input & UI
+                const pointer = this.input.activePointer;
+                if (pointer.isDown) {
+                    if (this.summonBtn.getBounds().contains(pointer.x, pointer.y)) {
+                        this.trySummon(time);
+                    } else {
+                        if (pointer.x < 180) this.player.setVelocityX(-300);
+                        else this.player.setVelocityX(300);
                     }
                 }
 
-                if (this.score >= 500 && !this.bossAppeared) {
+                if (this.spaceKey.isDown) {
+                    this.trySummon(time);
+                }
+
+                // Wave Logic
+                // Wave 1: 0-500 score (Normal)
+                // Wave 2: Boss (Triggered at 500)
+                // Wave 3+: Infinite with ramping difficulty
+
+                if (this.score >= 500 && this.wave === 1 && !this.bossAppeared) {
+                    this.wave = 2;
                     this.spawnBoss();
+                } else if (this.bossAppeared && !this.boss && this.wave === 2) {
+                    // Boss defeated
+                    this.wave = 3;
+                    this.waveStartTime = time;
+                    this.showWaveText('WAVE 3');
+                } else if (this.wave >= 3) {
+                    // Increase difficulty every 60 seconds
+                    if (time > this.waveStartTime + 60000) {
+                        this.wave++;
+                        this.waveStartTime = time;
+                        this.showWaveText('WAVE ' + this.wave);
+                    }
                 }
 
                 if (this.boss && this.boss.active) {
@@ -371,17 +521,74 @@
             spawnMeteor() {
                 if (this.gameOver || this.isPaused || this.bossAppeared) return;
                 const x = Phaser.Math.Between(25, 335);
+                const type = Phaser.Math.Between(0, 100);
+
                 const meteor = this.meteors.create(x, -50, 'meteorTexture');
-                meteor.setDisplaySize(30, 30);
-                meteor.setVelocityY(200);
+
+                if (type < 20) {
+                    // Red Meteor (Fast)
+                    meteor.setDisplaySize(30, 30);
+                    meteor.setVelocityY(300);
+                    meteor.setTint(0xff0000);
+                    meteor.hp = 1;
+                    meteor.scoreValue = 150;
+                } else if (type < 40) {
+                    // Big Meteor (High HP)
+                    meteor.setDisplaySize(50, 50);
+                    meteor.setVelocityY(150);
+                    meteor.setTint(0x888888); // Greyish for "heavy"
+                    meteor.hp = 2;
+                    meteor.scoreValue = 200;
+                } else {
+                    // Normal Meteor
+                    meteor.setDisplaySize(30, 30);
+                    meteor.setVelocityY(200);
+                    meteor.hp = 1;
+                    meteor.scoreValue = 100;
+                }
             }
 
-            spawnKey() {
+            trySummon(time) {
+                if (time > this.lastFired + this.fireRate) {
+                    if (this.keys >= 5) {
+                        this.spawnGuardian();
+                        this.lastFired = time;
+                        this.keys -= 5;
+                        this.keysText.setText('KEYS: ' + this.keys);
+
+                        // Visual Feedback
+                        this.summonBtn.setScale(1.1);
+                        this.time.delayedCall(100, () => this.summonBtn.setScale(1));
+                    } else {
+                        this.summonBtn.setTint(0xff0000);
+                        this.time.delayedCall(200, () => this.summonBtn.clearTint());
+                    }
+                }
+            }
+
+            spawnItem() {
                 if (this.gameOver || this.isPaused) return;
                 const x = Phaser.Math.Between(25, 335);
-                const key = this.items.create(x, -50, 'keyTexture');
-                key.setDisplaySize(20, 20);
-                key.setVelocityY(150);
+                const rand = Phaser.Math.Between(0, 100);
+
+                const item = this.items.create(x, -50, 'keyTexture');
+                item.setDisplaySize(25, 25);
+                item.setVelocityY(150);
+
+                if (rand < 15) {
+                    // Shield (15%)
+                    item.setTint(0x00ffff); // Cyan
+                    item.itemType = 'shield';
+                } else if (rand < 30) {
+                    // Rapid Fire (15%)
+                    item.setTint(0xffaa00); // Orange
+                    item.itemType = 'rapid';
+                } else {
+                    // Key (70%)
+                    item.clearTint();
+                    item.itemType = 'key';
+                    item.setDisplaySize(20, 20);
+                }
             }
 
             spawnGuardian() {
@@ -389,7 +596,8 @@
                 guardian.setDisplaySize(30, 30);
                 guardian.setImmovable(true);
 
-                this.time.delayedCall(5000, () => { if (guardian.active && !this.isPaused) guardian.destroy(); });
+                const duration = 5000 + (this.durationLevel - 1) * 1000;
+                this.time.delayedCall(duration, () => { if (guardian.active && !this.isPaused) guardian.destroy(); });
 
                 const fireTimer = this.time.addEvent({
                     delay: 500,
@@ -426,34 +634,85 @@
                 else bullet.setVelocityY(-400);
             }
 
-            collectKey(player, key) {
-                key.destroy();
-                playSound('keyGet'); // Sound Effect
+            collectItem(player, item) {
+                const type = item.itemType || 'key';
+                item.destroy();
+                playSound('keyGet');
 
-                this.keys++;
-                this.keysText.setText('KEYS: ' + this.keys);
+                if (type === 'key') {
+                    this.keys++;
+                    this.keysText.setText('KEYS: ' + this.keys);
+                } else if (type === 'shield') {
+                    this.hasShield = true;
+                    player.setTint(0x00ffff); // Cyan visual
+                    this.time.delayedCall(200, () => { if (this.hasShield) player.setTint(0x00ffff); });
+                } else if (type === 'rapid') {
+                    this.isRapidFire = true;
+                    this.fireRate = 200; // Ultra fast
+                    this.time.delayedCall(5000, () => {
+                        this.isRapidFire = false;
+                        this.fireRate = 1000;
+                    });
+                }
             }
 
             hitMeteor(player, meteor) {
+                if (this.hasShield) {
+                    this.hasShield = false;
+                    player.clearTint();
+                    meteor.destroy();
+                    playSound('meteorExplosion');
+
+                    // Invincibility flicker
+                    player.setAlpha(0.5);
+                    this.tweens.add({ targets: player, alpha: 1, duration: 100, repeat: 3 });
+                    return;
+                }
+
                 this.physics.pause();
                 player.setTint(0xff0000);
                 this.gameOver = true;
 
                 playSound('earthExplosion'); // Sound Effect
 
+                // Save Data
+                localStorage.setItem('sg_keys', this.keys);
+                if (this.score > this.highScore) {
+                    localStorage.setItem('sg_highScore', this.score);
+                }
+
+                this.add.text(180, 250, 'HIGH SCORE: ' + Math.max(this.score, this.highScore), { fontSize: '24px', fill: '#ffff00' }).setOrigin(0.5);
+
                 this.add.text(180, 320, 'GAME OVER', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
 
                 this.time.delayedCall(1000, () => {
                     this.input.on('pointerdown', () => {
-                        this.scene.start('GameScene');
+                        this.scene.start('MenuScene');
                     });
                 });
             }
 
             hitEnemy(bullet, meteor) {
                 bullet.destroy();
+
+                if (meteor.hp) {
+                    meteor.hp -= this.damageLevel;
+                    if (meteor.hp > 0) {
+                        meteor.setTint(0xffffff); // Flash white
+                        this.time.delayedCall(100, () => {
+                            if (meteor.active) {
+                                // Restore original tint
+                                if (meteor.scoreValue === 200) meteor.setTint(0x888888);
+                                else if (meteor.scoreValue === 150) meteor.setTint(0xff0000);
+                                else meteor.clearTint();
+                            }
+                        });
+                        return;
+                    }
+                }
+
                 meteor.destroy();
-                this.score += 100;
+                this.score += (meteor.scoreValue || 100);
                 this.scoreText.setText('SCORE: ' + this.score);
 
                 playSound('meteorExplosion'); // Sound Effect
@@ -473,7 +732,7 @@
                 default: 'arcade',
                 arcade: { debug: false }
             },
-            scene: [IntroScene, GameScene]
+            scene: [IntroScene, MenuScene, ShopScene, GameScene]
         };
 
         const game = new Phaser.Game(config);
