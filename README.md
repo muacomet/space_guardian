@@ -51,5 +51,16 @@ HTML5 Canvas와 Phaser 3를 사용하여 제작된 **Space Guardian**의 리메�
     - **HUD Bug**: 게임 오버 또는 재시작 시 점수 및 키 텍스트가 올바르게 초기화되도록 수정했습니다.
     - **Asset Injection**: 에셋 주입 스크립트를 개선하여 브라우저 호환성을 높였습니다.
 
+## 🐛 Issue Tracker & Resovled Bugs
+프로젝트 진행 중 발생한 주요 이슈와 해결 내역입니다.
+
+- [x] **Asset Mismatch**: 플레이어 기체가 의도한 'Earth' 이미지가 아닌 다른 아이콘으로 출력되는 문제 방지 (Resolved)
+- [x] **Transparency Issue**: 게임 내 모든 비트맵 이미지(플레이어, 적, 아이템)의 배경색(Magenta/Black)이 투명하게 처리되지 않던 문제 해결 (Resolved via `processChromaKey`)
+- [x] **Rapid Fire Bug**: 'Rapid Fire' 아이템 습득 시 발사 속도가 빨라지지 않던 로직 오류 수정 (Resolved)
+- [x] **Runtime Error**: 게임 오버/재시작 시 `scoreText` 초기화 누락으로 인한 콘솔 에러 수정 (Resolved)
+- [x] **Browser Compatibility**: `innerHTML`을 사용한 스크립트 주입 시 브라우저 멈춤 현상 해결 (Resolved via `createElement('script')`)
+- [ ] **Code Refactoring**: 단일 `index.html` 파일에 모든 로직이 포함되어 있어 유지보수가 어려움. 모듈 분리 필요 (Backlog)
+- [ ] **Mobile Optimization**: 모바일 터치 조작감 개선 및 가로 모드 강제 지원 필요 (Backlog)
+
 ---
 *이 게임은 제4회 인디사이드 게임대회 출품작을 리메이크한 프로젝트입니다.*
