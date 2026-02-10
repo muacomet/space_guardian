@@ -1,3 +1,19 @@
+node_modules/
 .DS_Store
+.vscode/
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Deploy
+deploy.sh
+
+# Documentation
+blog_posts/
+# Backups
+spaceguardian 180116/
+spaceguardian 180116.pdf
