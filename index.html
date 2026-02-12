@@ -323,6 +323,7 @@
                 this.guardians = this.physics.add.group();
                 this.meteors = this.physics.add.group();
                 this.items = this.physics.add.group();
+                this.explosions = this.add.group();
 
                 // Bullet Emitter
                 this.bulletEmitter = this.add.particles(0, 0, 'flare', {
@@ -337,6 +338,10 @@
                 this.hasShield = false;
                 this.isRapidFire = false;
                 this.fireRate = 500; // ms (Default)
+                this.activeTimers = [];
+                this.rapidTimer = null;
+                this.magnetTimer = null;
+                this.doubleTimer = null;
 
                 // Process textures to remove backgrounds (Explicit Magenta for known assets)
                 try {
@@ -408,7 +413,7 @@
 
                 // Spawn loops
                 this.time.addEvent({ delay: 500, callback: this.spawnMeteor, callbackScope: this, loop: true });
-                this.time.addEvent({ delay: 10000, callback: this.spawnItem, callbackScope: this, loop: true });
+                this.time.addEvent({ delay: 500, callback: this.spawnItem, callbackScope: this, loop: true });
                 console.log('GameScene: create finished successfully');
             }
 
@@ -506,7 +511,7 @@
                 this.physics.resume();
 
                 this.spawnEvent = this.time.addEvent({ delay: 1000, callback: this.spawnMeteor, callbackScope: this, loop: true });
-                this.keyEvent = this.time.addEvent({ delay: 2000, callback: this.spawnItem, callbackScope: this, loop: true });
+                this.keyEvent = this.time.addEvent({ delay: 500, callback: this.spawnItem, callbackScope: this, loop: true });
             }
 
             update(time, delta) {
@@ -527,6 +532,15 @@
 
                     if (this.cursors.up.isDown) this.player.setVelocityY(-300);
                     else if (this.cursors.down.isDown) this.player.setVelocityY(300);
+
+                    // Magnet Logic
+                    if (this.isMagnet) {
+                        this.items.children.iterate((item) => {
+                            if (item.active) {
+                                this.physics.moveToObject(item, this.player, 400);
+                            }
+                        });
+                    }
 
                     // Touch Input & UI
                     const pointer = this.input.activePointer;
@@ -584,6 +598,21 @@
                         }
                     });
                     if (this.items) this.items.getChildren().forEach(child => { if (child && child.y > 640) child.destroy(); });
+
+                    // Update Item Timers
+                    if (this.activeTimers.length > 0) {
+                        let textContent = '';
+                        const now = this.time.now;
+                        this.activeTimers = this.activeTimers.filter(t => t.endTime > now);
+
+                        this.activeTimers.forEach(t => {
+                            const remaining = Math.ceil((t.endTime - now) / 1000);
+                            textContent += `${t.name}: ${remaining}s\n`;
+                        });
+                        if (this.timerText) this.timerText.setText(textContent);
+                    } else if (this.timerText) {
+                        this.timerText.setText('');
+                    }
                 } catch (e) {
                     console.error('GameScene: Error in update loop:', e);
                 }
@@ -652,41 +681,45 @@
 
                 this.bossHP -= 2;
                 boss.setTint(0xff0000);
-                this.time.delayedCall(100, () => boss.clearTint());
+                this.time.delayedCall(100, () => { if (this.boss) this.boss.clearTint(); });
 
                 if (this.bossHP <= 0) {
-                    boss.destroy();
-                    this.bossAttackEvent.remove();
-
-                    playSound('meteorExplosion'); // Sound Effect (Big)
-                    this.cameras.main.flash(500); // Flash on kill
-                    this.cameras.main.shake(500, 0.02); // Big Shake
-
-                    const explosion = this.add.image(boss.x, boss.y, this.explosionTex);
-                    explosion.setScale(2);
-                    this.tweens.add({
-                        targets: explosion,
-                        alpha: 0,
-                        scale: 3,
-                        duration: 500,
-                        onComplete: () => explosion.destroy()
-                    });
-
-                    this.score += 3000;
-                    this.scoreText.setText('SCORE: ' + this.score);
-
-                    const clearText = this.add.text(180, 320, 'STAGE CLEAR!', {
-                        fontSize: '48px',
-                        fill: '#00ff00',
-                        fontStyle: 'bold',
-                        stroke: '#000000',
-                        strokeThickness: 5
-                    }).setOrigin(0.5);
-
-                    this.time.delayedCall(3000, () => {
-                        this.scene.start('GameScene');
-                    });
+                    this.killBoss(boss);
                 }
+            }
+
+            killBoss(boss) {
+                boss.destroy();
+                if (this.bossAttackEvent) this.bossAttackEvent.remove();
+
+                playSound('meteorExplosion'); // Sound Effect (Big)
+                this.cameras.main.flash(500); // Flash on kill
+                this.cameras.main.shake(500, 0.02); // Big Shake
+
+                const explosion = this.add.image(boss.x, boss.y, this.explosionTex);
+                explosion.setScale(2);
+                this.tweens.add({
+                    targets: explosion,
+                    alpha: 0,
+                    scale: 3,
+                    duration: 500,
+                    onComplete: () => explosion.destroy()
+                });
+
+                this.score += 3000;
+                this.scoreText.setText('SCORE: ' + this.score);
+
+                const clearText = this.add.text(180, 320, 'STAGE CLEAR!', {
+                    fontSize: '48px',
+                    fill: '#00ff00',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 5
+                }).setOrigin(0.5);
+
+                this.time.delayedCall(3000, () => {
+                    this.scene.start('GameScene');
+                });
             }
 
             togglePause() {
@@ -746,6 +779,7 @@
                 // HUD Text
                 this.scoreText = this.add.text(20, 20, 'SCORE: ' + this.score, { fontSize: '20px', fill: '#fff', fontStyle: 'bold' }).setDepth(100);
                 this.keysText = this.add.text(20, 50, 'KEYS: ' + this.keys, { fontSize: '20px', fill: '#ffff00', fontStyle: 'bold' }).setDepth(100);
+                this.timerText = this.add.text(20, 80, '', { fontSize: '16px', fill: '#00ff00', fontStyle: 'bold' }).setDepth(100);
 
                 // Slots
                 const slots = [
@@ -794,19 +828,32 @@
                 item.setDisplaySize(25, 25);
                 item.setVelocityY(150);
 
-                if (rand < 15) {
-                    // Shield (15%)
-                    item.setTint(0x00ffff); // Cyan
-                    item.itemType = 'shield';
-                } else if (rand < 30) {
-                    // Rapid Fire (15%)
-                    item.setTint(0xffaa00); // Orange
-                    item.itemType = 'rapid';
-                } else {
-                    // Key (70%)
+                // Probability: Key 80%, Shield 2%, Double 5%, Rapid 5%, Magnet 5%, Bomb 3%
+                if (rand < 80) {
+                    // Key (80%)
                     item.clearTint();
                     item.itemType = 'key';
                     item.setDisplaySize(20, 20);
+                } else if (rand < 82) {
+                    // Shield (2%)
+                    item.setTint(0x00ffff); // Cyan
+                    item.itemType = 'shield';
+                } else if (rand < 87) {
+                    // Double Shot (5%)
+                    item.setTint(0xFFFF00); // Yellow
+                    item.itemType = 'double';
+                } else if (rand < 92) {
+                    // Rapid Fire (5%)
+                    item.setTint(0xffaa00); // Orange
+                    item.itemType = 'rapid';
+                } else if (rand < 97) {
+                    // Magnet (5%)
+                    item.setTint(0xFF00FF); // Purple
+                    item.itemType = 'magnet';
+                } else {
+                    // Bomb (3%)
+                    item.setTint(0xFF0000); // Red
+                    item.itemType = 'bomb';
                 }
             }
 
@@ -851,6 +898,18 @@
 
                 if (closestMeteor) this.physics.moveToObject(bullet, closestMeteor, 400);
                 else bullet.setVelocityY(-400);
+
+                // Double Shot Logic
+                if (this.isDoubleShot) {
+                    const bullet2 = this.bullets.create(guardian.x + 10, guardian.y, 'bulletTexture');
+                    bullet2.setDisplaySize(15, 15);
+                    if (closestMeteor) {
+                        this.physics.moveToObject(bullet2, closestMeteor, 400);
+                    } else {
+                        bullet2.setVelocityY(-400);
+                        bullet2.setVelocityX(50); // Slight spread
+                    }
+                }
             }
 
             collectItem(player, item) {
@@ -868,10 +927,71 @@
                 } else if (type === 'rapid') {
                     this.isRapidFire = true;
                     this.fireRate = 200; // Ultra fast
-                    this.time.delayedCall(5000, () => {
+                    const duration = 5000;
+                    if (this.rapidTimer) this.rapidTimer.remove();
+                    this.rapidTimer = this.time.delayedCall(duration, () => {
                         this.isRapidFire = false;
-                        this.fireRate = 1000;
+                        this.fireRate = 500;
                     });
+                    this.updateItemTimer('RAPID', duration);
+                } else if (type === 'bomb') {
+                    // Bomb Logic
+                    let count = 0;
+                    this.meteors.children.each((meteor) => {
+                        if (meteor.active) {
+                            const explosion = this.explosions.create(meteor.x, meteor.y, this.explosionTex);
+                            explosion.setScale(0.5);
+                            this.tweens.add({
+                                targets: explosion,
+                                scale: 2,
+                                alpha: 0,
+                                duration: 500,
+                                onComplete: () => explosion.destroy()
+                            });
+                            meteor.destroy();
+                            count++;
+                        }
+                    });
+
+                    if (this.boss && this.boss.active) {
+                        this.bossHP -= 50;
+                        this.boss.setTint(0xff0000);
+                        this.time.delayedCall(100, () => { if (this.boss) this.boss.clearTint(); });
+                        if (this.bossHP <= 0) this.killBoss(this.boss);
+                    }
+
+                    this.score += count * 10;
+                    this.scoreText.setText('SCORE: ' + this.score);
+                    this.cameras.main.shake(300, 0.02);
+                    playSound('explosion');
+                } else if (type === 'magnet') {
+                    // Magnet Logic
+                    this.isMagnet = true;
+                    const duration = 10000;
+                    if (this.magnetTimer) this.magnetTimer.remove();
+                    this.magnetTimer = this.time.delayedCall(duration, () => {
+                        this.isMagnet = false;
+                    });
+                    this.updateItemTimer('MAGNET', duration);
+                } else if (type === 'double') {
+                    // Double Shot Logic
+                    this.isDoubleShot = true;
+                    const duration = 10000;
+                    if (this.doubleTimer) this.doubleTimer.remove();
+                    this.doubleTimer = this.time.delayedCall(duration, () => {
+                        this.isDoubleShot = false;
+                    });
+                    this.updateItemTimer('DOUBLE', duration);
+                }
+            }
+
+            updateItemTimer(name, duration) {
+                const endTime = this.time.now + duration;
+                const existing = this.activeTimers.find(t => t.name === name);
+                if (existing) {
+                    existing.endTime = endTime;
+                } else {
+                    this.activeTimers.push({ name, endTime });
                 }
             }
 
