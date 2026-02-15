@@ -1075,19 +1075,36 @@
             }
 
             shareScreenshot() {
+                // detailed logging
+                console.log('shareScreenshot called');
+                const shareBtn = this.children.list.find(child => child.text === '[ SHARE SCORE ]');
+                if (shareBtn) shareBtn.setText('Sharing...').setFill('#ffff00');
+
                 try {
                     this.game.renderer.snapshot((image) => {
                         // The image is an HTMLImageElement. We need a blob from the canvas.
                         const canvas = this.game.canvas;
+                        // Use JPEG for faster compression and smaller size
                         canvas.toBlob((blob) => {
-                            const fileName = `space-guardian-score-${this.score}.png`;
-                            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/png' })] })) {
-                                const file = new File([blob], fileName, { type: 'image/png' });
+                            const fileName = `space-guardian-score-${this.score}.jpg`;
+
+                            // Restore button text
+                            if (shareBtn) shareBtn.setText('[ SHARE SCORE ]').setFill('#00ffff');
+
+                            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/jpeg' })] })) {
+                                const file = new File([blob], fileName, { type: 'image/jpeg' });
                                 navigator.share({
                                     title: 'Space Guardian High Score',
                                     text: `I scored ${this.score} in Space Guardian! Can you beat me?`,
                                     files: [file]
-                                }).catch(err => console.log('Share failed:', err));
+                                }).catch(err => {
+                                    console.log('Share failed:', err);
+                                    // Fallback to text share if image share fails
+                                    navigator.share({
+                                        title: 'Space Guardian High Score',
+                                        text: `I scored ${this.score} in Space Guardian! Can you beat me?`
+                                    }).catch(e => console.error('Text share failed:', e));
+                                });
                             } else {
                                 // Fallback for PC / Unsupported browsers
                                 const link = document.createElement('a');
@@ -1097,10 +1114,11 @@
                                 link.click();
                                 document.body.removeChild(link);
                             }
-                        });
+                        }, 'image/jpeg', 0.8); // 0.8 quality
                     });
                 } catch (e) {
                     console.error('Screenshot failed:', e);
+                    if (shareBtn) shareBtn.setText('[ SHARE SCORE ]').setFill('#00ffff');
                 }
             }
 
