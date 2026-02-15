@@ -87,6 +87,7 @@
                 const images = {
                     'introTexture': INTRO_DATA,
                     'playerTexture': EARTH_DATA,
+                    'earth': EARTH_DATA,
                     'meteorTexture': METEOR_DATA,
                     'keyTexture': KEY_DATA,
                     'guardianTexture': GUARDIAN_DATA,
@@ -325,6 +326,15 @@
                 this.items = this.physics.add.group();
                 this.explosions = this.add.group();
 
+                // Earth Background
+                // Earth Background - REMOVED (Earth is now the player)
+                /*
+                if (this.textures.exists('earth')) {
+                    this.earth = this.add.image(180, 640, 'earth').setOrigin(0.5, 1).setDepth(5);
+                    this.earth.setScale(0.5);
+                }
+                */
+
                 // Bullet Emitter
                 this.bulletEmitter = this.add.particles(0, 0, 'flare', {
                     speed: 100,
@@ -376,7 +386,11 @@
 
                 this.player.setDisplaySize(50, 50);
                 this.player.setCollideWorldBounds(true);
-                this.player.body.setCircle(this.player.width * 0.4);
+                // Reduced hitbox size for better precision (Earth is round)
+                const hitRadius = this.player.width * 0.25;
+                this.player.body.setCircle(hitRadius);
+                const offset = (this.player.width - (hitRadius * 2)) / 2;
+                this.player.body.setOffset(offset, offset);
 
                 // Graphics for Particles
                 if (!this.textures.exists('flare')) {
@@ -589,7 +603,15 @@
                         this.boss.x = Phaser.Math.Clamp(this.boss.x, 50, 310);
                     }
 
-                    if (this.meteors) this.meteors.getChildren().forEach(child => { if (child && child.y > 640) child.destroy(); });
+                    if (this.meteors) this.meteors.getChildren().forEach(child => {
+                        if (child) {
+                            // Earth Hit Detection (REMOVED - Earth is player)
+                            // if (child.y > earthTop && child.active) {
+                            //    this.hitEarth(child);
+                            // }
+                            if (child.y > 660) child.destroy();
+                        }
+                    });
 
                     if (this.bullets) this.bullets.getChildren().forEach(child => {
                         if (child) {
@@ -862,6 +884,24 @@
                 guardian.setDisplaySize(40, 40);
                 guardian.setImmovable(true);
 
+                // Invincibility Logic
+                guardian.isInvincible = true;
+                const flicker = this.tweens.add({
+                    targets: guardian,
+                    alpha: 0.5,
+                    duration: 100,
+                    yoyo: true,
+                    repeat: -1
+                });
+
+                this.time.delayedCall(3000, () => {
+                    if (guardian.active) {
+                        guardian.isInvincible = false;
+                        guardian.setAlpha(1);
+                        if (flicker) flicker.remove();
+                    }
+                });
+
                 const duration = 5000 + (this.durationLevel - 1) * 1000;
                 this.time.delayedCall(duration, () => { if (guardian.active && !this.isPaused) guardian.destroy(); });
 
@@ -995,6 +1035,87 @@
                 }
             }
 
+            showGameOverUI(message, subMessage = 'GAME OVER') {
+                // Save Data
+                localStorage.setItem('sg_keys', this.keys);
+                if (this.score > this.highScore) {
+                    localStorage.setItem('sg_highScore', this.score);
+                }
+
+                const highScore = Math.max(this.score, this.highScore);
+                this.add.text(180, 250, 'HIGH SCORE: ' + highScore, { fontSize: '24px', fill: '#ffff00' }).setOrigin(0.5).setDepth(100);
+
+                if (message) {
+                    this.add.text(180, 300, message, { fontSize: '30px', fill: '#ff0000', fontStyle: 'bold' }).setOrigin(0.5).setDepth(100);
+                    this.add.text(180, 350, subMessage, { fontSize: '40px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(100);
+                } else {
+                    this.add.text(180, 320, subMessage, { fontSize: '48px', fill: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(100);
+                }
+
+                // Share Button (Snapshot & Share)
+                const shareBtn = this.add.text(180, 420, '[ SHARE SCORE ]', {
+                    fontSize: '24px',
+                    fill: '#00ffff',
+                    backgroundColor: '#333',
+                    padding: { x: 10, y: 5 }
+                })
+                    .setOrigin(0.5)
+                    .setDepth(100)
+                    .setInteractive({ useHandCursor: true })
+                    .on('pointerdown', () => this.shareScreenshot());
+
+                // Restart Logic
+                this.time.delayedCall(1000, () => {
+                    this.input.on('pointerdown', (pointer, gameObjects) => {
+                        // Prevent restarting if clicking the share button
+                        if (gameObjects.length > 0 && gameObjects[0] === shareBtn) return;
+                        this.scene.start('MenuScene');
+                    });
+                });
+            }
+
+            shareScreenshot() {
+                try {
+                    this.game.renderer.snapshot((image) => {
+                        // The image is an HTMLImageElement. We need a blob from the canvas.
+                        const canvas = this.game.canvas;
+                        canvas.toBlob((blob) => {
+                            const fileName = `space-guardian-score-${this.score}.png`;
+                            if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/png' })] })) {
+                                const file = new File([blob], fileName, { type: 'image/png' });
+                                navigator.share({
+                                    title: 'Space Guardian High Score',
+                                    text: `I scored ${this.score} in Space Guardian! Can you beat me?`,
+                                    files: [file]
+                                }).catch(err => console.log('Share failed:', err));
+                            } else {
+                                // Fallback for PC / Unsupported browsers
+                                const link = document.createElement('a');
+                                link.download = fileName;
+                                link.href = URL.createObjectURL(blob);
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }
+                        });
+                    });
+                } catch (e) {
+                    console.error('Screenshot failed:', e);
+                }
+            }
+
+            /* hitEarth Removed - Earth is player
+            hitEarth(meteor) {
+                if (this.gameOver) return;
+                this.physics.pause();
+                this.gameOver = true;
+                this.cameras.main.shake(500, 0.03);
+                playSound('earthExplosion');
+                if (meteor) meteor.destroy();
+                this.showGameOverUI('EARTH DAMAGED');
+            }
+            */
+
             hitMeteor(player, meteor) {
                 if (this.hasShield) {
                     this.hasShield = false;
@@ -1015,25 +1136,14 @@
 
                 playSound('earthExplosion'); // Sound Effect
 
-                // Save Data
-                localStorage.setItem('sg_keys', this.keys);
-                if (this.score > this.highScore) {
-                    localStorage.setItem('sg_highScore', this.score);
-                }
-
-                this.add.text(180, 250, 'HIGH SCORE: ' + Math.max(this.score, this.highScore), { fontSize: '24px', fill: '#ffff00' }).setOrigin(0.5);
-
-                this.add.text(180, 320, 'GAME OVER', { fontSize: '48px', fill: '#fff' }).setOrigin(0.5);
-
-                this.time.delayedCall(1000, () => {
-                    this.input.on('pointerdown', () => {
-                        this.scene.start('MenuScene');
-                    });
-                });
+                this.showGameOverUI();
             }
 
             hitEnemy(bullet, meteor) {
-                bullet.destroy();
+                // Guardian Invincibility Check
+                if (!bullet.isInvincible) {
+                    bullet.destroy();
+                }
 
                 if (meteor.hp) {
                     meteor.hp -= this.damageLevel;
@@ -1061,7 +1171,7 @@
 
         const config = {
             type: Phaser.AUTO,
-            render: { pixelArt: true },
+            render: { pixelArt: true, preserveDrawingBuffer: true },
             width: 360,
             height: 640,
             backgroundColor: '#000000',
